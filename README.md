@@ -66,6 +66,35 @@ framework's Objective-C header via the standard Clang-importer naming rules and
 has not yet been compiled against a real Xcode toolchain. Confirm it on the
 first iOS build.
 
+## Swift Package Manager
+
+The iOS side ships both a CocoaPods podspec and a Swift package, the way
+Flutter's own plugins do. Apps pick whichever they use; both read the same
+sources and the same xcframework:
+
+```
+ios/iris_sdk_flutter.podspec                       CocoaPods entry point
+ios/iris_sdk_flutter/Package.swift                 SPM entry point
+ios/iris_sdk_flutter/Sources/iris_sdk_flutter/     Swift sources (shared)
+ios/iris_sdk_flutter/PassportReader.xcframework/   vendor SDK (shared)
+```
+
+The xcframework sits inside the Swift package directory because an SPM
+`binaryTarget` path has to stay within the package root; the podspec reaches
+down into that directory for it.
+
+Two things to know before switching an app over:
+
+- Swift Package Manager is **off by default** and is enabled per machine with
+  `flutter config --enable-swift-package-manager`.
+- `Package.swift` declares its Flutter dependency as `FlutterFramework`, which
+  is what Flutter 3.47 generates. Older SDKs generated a package named
+  `Flutter` instead, so this manifest needs **3.47 or newer**. irmamobile's CI
+  pins 3.47.0; vcmrtd's pins 3.38.4 and would need bumping first.
+
+Nothing breaks in the meantime — the podspec stays authoritative for any app
+that hasn't enabled SPM.
+
 ## Updating the SDK
 
 1. Drop the new `PassportReader.aar` into `android/libs/` and the unzipped
