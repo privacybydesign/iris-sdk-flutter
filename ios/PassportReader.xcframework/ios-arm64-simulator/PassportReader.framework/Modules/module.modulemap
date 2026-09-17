@@ -1,0 +1,6 @@
+framework module PassportReader {
+  umbrella header "PassportReader.h"
+  export *
+
+  module * { export * }
+}

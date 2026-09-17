@@ -1,0 +1,15 @@
+# Dart/Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+
+# The vendor SDK binaries (android/libs/PassportReader.aar and
+# ios/PassportReader.xcframework) are deliberately committed — shipping them
+# with the package is the whole point of this repository. Don't add them here.
+
+# macOS
+.DS_Store
+._*

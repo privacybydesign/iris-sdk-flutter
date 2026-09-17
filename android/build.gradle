@@ -1,0 +1,48 @@
+plugins {
+    id "com.android.library"
+    id "org.jetbrains.kotlin.android"
+}
+
+group = "foundation.privacybydesign.irissdkflutter"
+version = "1.0"
+
+android {
+    namespace = "foundation.privacybydesign.irissdkflutter"
+
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        // The Iris SDK's own manifest requires API 26+.
+        minSdk = 26
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+}
+
+// The vendor SDK is committed to this repository as android/libs/PassportReader.aar.
+// flatDir rather than `implementation files(...)` because the latter treats an
+// .aar as a bare jar: the SDK's manifest, resources and JNI libs would never
+// merge into the consuming app. Declared here rather than in each app's root
+// build.gradle so this package stays self-contained — that works because
+// neither consuming app opts into dependencyResolutionManagement /
+// FAIL_ON_PROJECT_REPOS, so project-level repositories are still additive.
+repositories {
+    flatDir {
+        dirs "${projectDir}/libs"
+    }
+}
+
+dependencies {
+    implementation(group: "", name: "PassportReader", ext: "aar")
+}

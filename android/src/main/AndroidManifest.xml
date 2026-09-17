@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+    The Iris SDK's own .aar manifest declares INTERNET, VIBRATE, CAMERA and NFC
+    permissions plus android.hardware.camera / android.hardware.nfc features,
+    and those merge into any app that depends on this package. Note the
+    <uses-feature> entries default to required="true", which makes a consuming
+    app invisible on Google Play to devices without a camera or NFC — override
+    with required="false" in the app manifest if that is not wanted.
+    -->
+    <application>
+        <activity
+            android:name=".IrisFaceVerificationActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+    </application>
+</manifest>
