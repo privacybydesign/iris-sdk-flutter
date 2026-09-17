@@ -18,7 +18,7 @@ dependencies:
   iris_sdk_flutter:
     git:
       url: https://github.com/privacybydesign/iris-sdk-flutter.git
-      ref: v1.0.0
+      ref: v1.0.1
 ```
 
 ```dart

@@ -1,7 +1,7 @@
 name: iris_sdk_flutter
 description: Flutter bindings for the Iris SDK (passportreader.app) — vendor-owned face verification that drives its own native camera UI.
 
-version: 1.0.0
+version: 1.0.1
 publish_to: none
 
 environment:

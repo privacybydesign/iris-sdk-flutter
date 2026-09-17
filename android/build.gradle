@@ -31,15 +31,25 @@ android {
 }
 
 // The vendor SDK is committed to this repository as android/libs/PassportReader.aar.
-// flatDir rather than `implementation files(...)` because the latter treats an
-// .aar as a bare jar: the SDK's manifest, resources and JNI libs would never
-// merge into the consuming app. Declared here rather than in each app's root
-// build.gradle so this package stays self-contained — that works because
-// neither consuming app opts into dependencyResolutionManagement /
-// FAIL_ON_PROJECT_REPOS, so project-level repositories are still additive.
-repositories {
-    flatDir {
-        dirs "${projectDir}/libs"
+//
+// flatDir rather than `implementation files(...)`: the latter treats an .aar as
+// a bare jar, so the SDK's manifest, resources and JNI libs would never merge
+// into the consuming app.
+//
+// The repository has to be injected into rootProject.allprojects, not declared
+// as a plain `repositories {}` block here. Gradle resolves a configuration
+// using the repositories of the project that owns it, so :app resolving its own
+// runtimeClasspath never consults this module's repositories — a local block
+// fails with "Could not find :PassportReader:". Injecting into allprojects puts
+// it on :app too, which is what makes the package self-contained rather than
+// requiring every consuming app to wire up a flatDir itself. (Same approach
+// flutter_face_api uses to add Regula's maven repo.)
+def vendorLibs = file("libs")
+rootProject.allprojects {
+    repositories {
+        flatDir {
+            dirs vendorLibs
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'iris_sdk_flutter'
-  s.version          = '1.0.0'
+  s.version          = '1.0.1'
   s.summary          = 'Flutter bindings for the Iris SDK (passportreader.app).'
   s.description      = <<-DESC
 Face verification backed by the vendor Iris SDK, which drives its own
