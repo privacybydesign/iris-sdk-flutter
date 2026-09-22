@@ -118,7 +118,8 @@ and `NSCameraUsageDescription` in `Info.plist`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs three status checks on every pull request:
+`.github/workflows/ci.yml` runs three status checks on every push, on every
+branch:
 
 | Check | What it proves |
 | --- | --- |

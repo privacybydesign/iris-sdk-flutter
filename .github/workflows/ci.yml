@@ -1,9 +1,9 @@
 name: CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
+# Every push on every branch. No `pull_request` trigger alongside it: for a
+# branch in this repository that would run each job a second time on the same
+# commit. The trade is that a pull request from a fork gets no checks.
+on: push
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
