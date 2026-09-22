@@ -86,15 +86,45 @@ down into that directory for it.
 
 Two things to know before switching an app over:
 
-- Swift Package Manager is **off by default** and is enabled per machine with
-  `flutter config --enable-swift-package-manager`.
+- Swift Package Manager is **on by default** as of Flutter 3.47 — the feature
+  is `enabledByDefault` on every channel, and the tool already warns that
+  turning it off "will not be allowed in a future version of Flutter". An app
+  on an older SDK, or one that has run `flutter config
+  --no-enable-swift-package-manager`, still goes through the podspec, so
+  nothing breaks in the meantime.
 - `Package.swift` declares its Flutter dependency as `FlutterFramework`, which
   is what Flutter 3.47 generates. Older SDKs generated a package named
   `Flutter` instead, so this manifest needs **3.47 or newer**. irmamobile's CI
   pins 3.47.0; vcmrtd's pins 3.38.4 and would need bumping first.
 
-Nothing breaks in the meantime — the podspec stays authoritative for any app
-that hasn't enabled SPM.
+### Clone this repository as `iris_sdk_flutter`
+
+```
+git clone https://github.com/privacybydesign/iris-sdk-flutter.git iris_sdk_flutter
+```
+
+The repository is named `iris-sdk-flutter` but the Dart package is
+`iris_sdk_flutter`, and `example/` reaches the package through `path: ../`.
+Flutter's SPM integration symlinks each plugin under the basename of its
+checkout directory; Xcode then rejects that symlink as an override of the
+package's real directory, `ios/iris_sdk_flutter`, unless the two basenames
+agree. Out of a checkout named `iris-sdk-flutter` the example will not resolve:
+
+```
+xcodebuild: error: Could not resolve package dependencies:
+  unable to override package 'iris_sdk_flutter' because its identity
+  'iris-sdk-flutter' doesn't match override's identity (directory name)
+  'iris_sdk_flutter'
+```
+
+Only `example/` is affected. It is the only app that reaches this package
+through a `path:` dependency, which is what puts the app and the package in one
+tree; a `git:` dependency resolves into the pub cache, where no override arises
+— checked against a scratch app that consumes this package by path from
+outside the repository. CI works around it by checking out into
+`iris_sdk_flutter/`. Renaming the repository would retire the workaround
+altogether, and GitHub redirects the old URL, so consuming apps' `git:` refs
+would keep resolving.
 
 ## Example app
 
@@ -129,7 +159,14 @@ branch:
 
 Neither native build is signed, so no signing credentials are involved.
 `FLUTTER_VERSION` at the top of the workflow pins the toolchain — keep it in
-step with the consuming apps.
+step with the consuming apps. Flutter is installed by
+`.github/actions/setup-flutter`, a local composite action, because the
+privacybydesign organisation only permits actions it owns, GitHub's own, or
+Marketplace-verified ones — which rules out `subosito/flutter-action`.
+
+Each job checks out into `iris_sdk_flutter/` rather than the repository's own
+name, for the reason given under [Swift Package
+Manager](#clone-this-repository-as-iris_sdk_flutter).
 
 ## Updating the SDK
 

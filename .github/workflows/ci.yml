@@ -14,39 +14,62 @@ env:
   # only exists from 3.47 onwards. Keep this in step with the consuming apps.
   FLUTTER_VERSION: "3.47.4"
 
+# Every job checks out into iris_sdk_flutter/ rather than the repository's own
+# name, because this repository is iris-sdk-flutter and the Dart package is
+# iris_sdk_flutter. Flutter's Swift Package Manager integration symlinks a
+# plugin under the basename of its checkout directory, and Xcode rejects that
+# symlink as an override of the package's real directory, ios/iris_sdk_flutter,
+# unless the two basenames agree — so example/ fails to resolve out of a
+# checkout named iris-sdk-flutter. Only example/ is affected: it is the only
+# app that reaches the package through a `path:` dependency. Apps consuming
+# this package over git are fine, verified against a scratch app.
+#
+# `uses:` takes no expressions, so the directory is spelled out below rather
+# than held in a variable. Cloning locally? `git clone <url> iris_sdk_flutter`.
+
 jobs:
   analyze:
     name: Analyze & test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-flutter
+        with:
+          path: iris_sdk_flutter
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
         with:
           version: ${{ env.FLUTTER_VERSION }}
 
       - run: flutter pub get
       - run: flutter pub get
-        working-directory: example
+        working-directory: iris_sdk_flutter/example
 
-      # One run each from the repository root: the formatter walks the whole
-      # tree, and `flutter analyze` picks up example/ as a nested package.
+      # One run each from the package root: the formatter walks the whole tree,
+      # and `flutter analyze` picks up example/ as a nested package.
       - run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
 
       - run: flutter test
       - run: flutter test
-        working-directory: example
+        working-directory: iris_sdk_flutter/example
 
   android:
     name: Build Android
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter/example
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: iris_sdk_flutter
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-      - uses: ./.github/actions/setup-flutter
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
         with:
           version: ${{ env.FLUTTER_VERSION }}
 
@@ -54,14 +77,18 @@ jobs:
       # its manifest, resources and JNI libs all have to survive the merge, and
       # a debug APK is the cheapest way to see that happen end to end.
       - run: flutter build apk --debug
-        working-directory: example
 
   ios:
     name: Build iOS
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter/example
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-flutter
+        with:
+          path: iris_sdk_flutter
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
         with:
           version: ${{ env.FLUTTER_VERSION }}
 
@@ -69,4 +96,3 @@ jobs:
       # ios-arm64 and ios-arm64-simulator slices only, and arm64 is what
       # actually ships. --no-codesign keeps it free of signing credentials.
       - run: flutter build ios --debug --no-codesign
-        working-directory: example
