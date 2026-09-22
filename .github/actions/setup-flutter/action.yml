@@ -1,0 +1,70 @@
+name: Set up Flutter
+description: >
+  Installs a pinned Flutter release from Google's own archives and puts it on
+  PATH. This exists instead of subosito/flutter-action because the
+  privacybydesign organisation only permits actions owned by privacybydesign,
+  written by GitHub, or verified in the Marketplace — a local action is exempt.
+
+inputs:
+  version:
+    description: The Flutter release to install, e.g. 3.47.4.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve the archive for this runner
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        version='${{ inputs.version }}'
+        case "${RUNNER_OS}/${RUNNER_ARCH}" in
+          Linux/X64)   archive="stable/linux/flutter_linux_${version}-stable.tar.xz" ;;
+          macOS/ARM64) archive="stable/macos/flutter_macos_arm64_${version}-stable.zip" ;;
+          macOS/X64)   archive="stable/macos/flutter_macos_${version}-stable.zip" ;;
+          *) echo "::error::Flutter publishes no archive for ${RUNNER_OS}/${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        # Both archives unpack to a top-level flutter/ directory, so the SDK
+        # lands at $root/flutter whichever branch above was taken.
+        echo "url=https://storage.googleapis.com/flutter_infra_release/releases/${archive}" >>"$GITHUB_OUTPUT"
+        echo "root=${RUNNER_TOOL_CACHE}/flutter-${version}-${RUNNER_ARCH}" >>"$GITHUB_OUTPUT"
+
+    # Keyed on the release alone, which is enough: a published Flutter archive
+    # never changes under a given version.
+    - uses: actions/cache@v4
+      id: cache
+      with:
+        path: ${{ steps.resolve.outputs.root }}
+        key: flutter-${{ inputs.version }}-${{ runner.os }}-${{ runner.arch }}
+
+    - name: Download and unpack
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        root='${{ steps.resolve.outputs.root }}'
+        url='${{ steps.resolve.outputs.url }}'
+        mkdir -p "$root"
+        case "$url" in
+          *.tar.xz) curl -fsSL "$url" | tar -xJ -C "$root" ;;
+          *.zip)
+            curl -fsSL "$url" -o "${RUNNER_TEMP}/flutter.zip"
+            unzip -q "${RUNNER_TEMP}/flutter.zip" -d "$root"
+            rm "${RUNNER_TEMP}/flutter.zip"
+            ;;
+        esac
+
+    - name: Put it on PATH
+      shell: bash
+      run: |
+        set -euo pipefail
+        root='${{ steps.resolve.outputs.root }}'
+        # The archives ship a real git checkout, which the flutter tool reads
+        # its version from and refuses to touch when git calls it untrusted.
+        git config --global --add safe.directory "${root}/flutter"
+        echo "${root}/flutter/bin" >>"$GITHUB_PATH"
+
+    - name: Report the version
+      shell: bash
+      run: flutter --version
