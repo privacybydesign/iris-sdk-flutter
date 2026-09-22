@@ -12,8 +12,9 @@ import UIKit
 /// The Swift spelling of `startFaceVerification` below is derived from the
 /// framework's Objective-C header
 /// (`-startFaceVerificationInWindowScene:portrait:completion:failure:cancellation:`)
-/// via the standard Clang-importer naming rules, and has not yet been compiled
-/// against a real Xcode toolchain. Confirm it on the first iOS build.
+/// via the standard Clang-importer naming rules. The example app in `example/`
+/// is what keeps it honest: CI builds it against the real framework, so a
+/// vendor rename fails there rather than in a consuming app.
 public class IrisSdkFlutterPlugin: NSObject, FlutterPlugin {
     private let reader = PassportReader()
 
