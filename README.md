@@ -61,10 +61,11 @@ project or CocoaPods will refuse to integrate the pod. The xcframework ships
 `ios-arm64` and `ios-arm64-simulator` slices only — no Intel simulator slice,
 so it will not build for a simulator on an Intel Mac.
 
-The Swift call in `ios/Classes/IrisSdkFlutterPlugin.swift` is derived from the
-framework's Objective-C header via the standard Clang-importer naming rules and
-has not yet been compiled against a real Xcode toolchain. Confirm it on the
-first iOS build.
+The Swift call in `ios/iris_sdk_flutter/Sources/iris_sdk_flutter/IrisSdkFlutterPlugin.swift`
+is derived from the framework's Objective-C header via the standard
+Clang-importer naming rules. It does compile and link against the real
+framework — the `Build iOS` check below builds the example app on every push,
+so a vendor rename breaks CI rather than a consuming app.
 
 ## Swift Package Manager
 
@@ -94,6 +95,40 @@ Two things to know before switching an app over:
 
 Nothing breaks in the meantime — the podspec stays authoritative for any app
 that hasn't enabled SPM.
+
+## Example app
+
+`example/` is a one-screen host app: it reads the SDK version over the method
+channel and runs a verification against a blank placeholder portrait.
+
+```
+cd example
+flutter run
+```
+
+It exists to prove the package builds and links on both platforms, not to
+demonstrate a real flow — the placeholder portrait has no face in it, so
+verification is expected to fail. Reading the version already exercises the
+whole chain: Dart → method channel → native plugin → the bundled vendor binary.
+
+The example carries the platform minimums a consuming app inherits, and is
+worth copying from: `minSdk 26` in `android/app/build.gradle.kts`, `platform
+:ios, '16.0'` in the Podfile alongside a matching `IPHONEOS_DEPLOYMENT_TARGET`,
+and `NSCameraUsageDescription` in `Info.plist`.
+
+## CI
+
+`.github/workflows/ci.yml` runs three status checks on every pull request:
+
+| Check | What it proves |
+| --- | --- |
+| `Analyze & test` | Formatting, analysis and the Dart tests, for the package and the example both. |
+| `Build Android` | `PassportReader.aar` merges into a consuming app — manifest, resources and JNI libs included. |
+| `Build iOS` | The Swift bridge compiles and `PassportReader.xcframework` links, for an arm64 device. |
+
+Neither native build is signed, so no signing credentials are involved.
+`FLUTTER_VERSION` at the top of the workflow pins the toolchain — keep it in
+step with the consuming apps.
 
 ## Updating the SDK
 

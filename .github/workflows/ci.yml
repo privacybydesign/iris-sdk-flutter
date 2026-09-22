@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Package.swift declares its Flutter dependency as FlutterFramework, which
+  # only exists from 3.47 onwards. Keep this in step with the consuming apps.
+  FLUTTER_VERSION: "3.47.4"
+
+jobs:
+  analyze:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter pub get
+        working-directory: example
+
+      # One run each from the repository root: the formatter walks the whole
+      # tree, and `flutter analyze` picks up example/ as a nested package.
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze
+
+      - run: flutter test
+      - run: flutter test
+        working-directory: example
+
+  android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Proves android/libs/PassportReader.aar merges into a consuming app:
+      # its manifest, resources and JNI libs all have to survive the merge, and
+      # a debug APK is the cheapest way to see that happen end to end.
+      - run: flutter build apk --debug
+        working-directory: example
+
+  ios:
+    name: Build iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # A device build rather than a simulator one: the xcframework ships
+      # ios-arm64 and ios-arm64-simulator slices only, and arm64 is what
+      # actually ships. --no-codesign keeps it free of signing credentials.
+      - run: flutter build ios --debug --no-codesign
+        working-directory: example
