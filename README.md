@@ -64,8 +64,8 @@ so it will not build for a simulator on an Intel Mac.
 The Swift call in `ios/iris_sdk_flutter/Sources/iris_sdk_flutter/IrisSdkFlutterPlugin.swift`
 is derived from the framework's Objective-C header via the standard
 Clang-importer naming rules. It does compile and link against the real
-framework — the `Build iOS` check below builds the example app on every push,
-so a vendor rename breaks CI rather than a consuming app.
+framework — the `Build iOS` check below builds the example app on every pull
+request, so a vendor rename breaks CI rather than a consuming app.
 
 ## Swift Package Manager
 
@@ -148,14 +148,20 @@ and `NSCameraUsageDescription` in `Info.plist`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs three status checks on every push, on every
-branch:
+`.github/workflows/status-checks.yml` runs on every pull request, on pushes to
+`main` and weekly. Next to the organisation's shared checks from
+[github-workflows](https://github.com/privacybydesign/github-workflows)
+(workflow lint, and dependency review on pull requests), it runs three jobs of
+its own:
 
 | Check | What it proves |
 | --- | --- |
 | `Analyze & test` | Formatting, analysis and the Dart tests, for the package and the example both. |
 | `Build Android` | `PassportReader.aar` merges into a consuming app — manifest, resources and JNI libs included. |
 | `Build iOS` | The Swift bridge compiles and `PassportReader.xcframework` links, for an arm64 device. |
+
+`Status checks passed` fails when any of them does, and is the one check to
+require on `main`.
 
 Neither native build is signed, so no signing credentials are involved.
 `FLUTTER_VERSION` at the top of the workflow pins the toolchain — keep it in

@@ -1,0 +1,18 @@
+# Updates are grouped (one PR per ecosystem) and wait 7 days after a release
+# (cooldown) so compromised releases are usually yanked before they reach us.
+# Security updates are not delayed.
+version: 2
+updates:
+  - package-ecosystem: github-actions # also bumps the shared workflows
+    directories: ["/", "/.github/actions/*"] # workflows and the local setup-flutter action
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }
+    cooldown: { default-days: 7 }
+
+  - package-ecosystem: pub
+    directories: ["/", "/example"]
+    schedule: { interval: weekly, day: monday }
+    groups:
+      pub: { patterns: ["*"] }
+    cooldown: { default-days: 7 }
