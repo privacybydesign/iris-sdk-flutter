@@ -8,6 +8,7 @@ updates:
     schedule: { interval: weekly, day: monday }
     groups:
       actions: { patterns: ["*"] }
+      actions-security: { applies-to: security-updates, patterns: ["*"] }
     cooldown: { default-days: 7 }
 
   - package-ecosystem: pub
@@ -15,4 +16,5 @@ updates:
     schedule: { interval: weekly, day: monday }
     groups:
       pub: { patterns: ["*"] }
+      pub-security: { applies-to: security-updates, patterns: ["*"] }
     cooldown: { default-days: 7 }
