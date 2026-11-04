@@ -1,0 +1,150 @@
+# Status checks, using the shared workflows from privacybydesign/github-workflows.
+# The gate job "Status checks passed" is the one check to require.
+#
+# There is no shared workflow for Flutter, so the package's own checks run as
+# local jobs below: analyze & test, and building the example app for Android
+# and iOS.
+name: Status checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+# Superseded pull request runs are cancelled; runs on main are never cut short.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Package.swift declares its Flutter dependency as FlutterFramework, which
+  # only exists from 3.47 onwards. Keep this in step with the consuming apps.
+  FLUTTER_VERSION: "3.47.4"
+
+# Every Flutter job checks out into iris_sdk_flutter/ rather than the
+# repository's own name, because this repository is iris-sdk-flutter and the
+# Dart package is iris_sdk_flutter. Flutter's Swift Package Manager integration
+# symlinks a plugin under the basename of its checkout directory, and Xcode
+# rejects that symlink as an override of the package's real directory,
+# ios/iris_sdk_flutter, unless the two basenames agree — so example/ fails to
+# resolve out of a checkout named iris-sdk-flutter. Only example/ is affected:
+# it is the only app that reaches the package through a `path:` dependency.
+# Apps consuming this package over git are fine, verified against a scratch app.
+#
+# `uses:` takes no expressions, so the directory is spelled out below rather
+# than held in a variable. Cloning locally? `git clone <url> iris_sdk_flutter`.
+
+jobs:
+  analyze:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: iris_sdk_flutter
+          persist-credentials: false
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
+        with:
+          version: ${{ env.FLUTTER_VERSION }}
+
+      - run: flutter pub get
+      - run: flutter pub get
+        working-directory: iris_sdk_flutter/example
+
+      # One run each from the package root: the formatter walks the whole tree,
+      # and `flutter analyze` picks up example/ as a nested package.
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze
+
+      - run: flutter test
+      - run: flutter test
+        working-directory: iris_sdk_flutter/example
+
+  android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter/example
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: iris_sdk_flutter
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
+        with:
+          version: ${{ env.FLUTTER_VERSION }}
+
+      # Proves android/libs/PassportReader.aar merges into a consuming app:
+      # its manifest, resources and JNI libs all have to survive the merge, and
+      # a debug APK is the cheapest way to see that happen end to end.
+      - run: flutter build apk --debug
+
+  ios:
+    name: Build iOS
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: iris_sdk_flutter/example
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: iris_sdk_flutter
+          persist-credentials: false
+      - uses: ./iris_sdk_flutter/.github/actions/setup-flutter
+        with:
+          version: ${{ env.FLUTTER_VERSION }}
+
+      # A device build rather than a simulator one: the xcframework ships
+      # ios-arm64 and ios-arm64-simulator slices only, and arm64 is what
+      # actually ships. --no-codesign keeps it free of signing credentials.
+      - run: flutter build ios --debug --no-codesign
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    uses: privacybydesign/github-workflows/.github/workflows/dependency-review.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+
+  workflow-lint:
+    uses: privacybydesign/github-workflows/.github/workflows/workflow-lint.yml@v1
+    permissions:
+      contents: read
+
+  passed:
+    name: Status checks passed
+    if: always()
+    needs: [analyze, android, ios, dependency-review, workflow-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: All required jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if grep -qE '"(failure|cancelled)"' <<< "$RESULTS"; then exit 1; fi
