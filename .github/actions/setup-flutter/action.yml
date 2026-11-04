@@ -16,9 +16,11 @@ runs:
     - name: Resolve the archive for this runner
       id: resolve
       shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
-        version='${{ inputs.version }}'
+        version="$VERSION"
         case "${RUNNER_OS}/${RUNNER_ARCH}" in
           Linux/X64)   archive="stable/linux/flutter_linux_${version}-stable.tar.xz" ;;
           macOS/ARM64) archive="stable/macos/flutter_macos_arm64_${version}-stable.zip" ;;
@@ -32,7 +34,7 @@ runs:
 
     # Keyed on the release alone, which is enough: a published Flutter archive
     # never changes under a given version.
-    - uses: actions/cache@v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       id: cache
       with:
         path: ${{ steps.resolve.outputs.root }}
@@ -41,10 +43,13 @@ runs:
     - name: Download and unpack
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
+      env:
+        ROOT: ${{ steps.resolve.outputs.root }}
+        URL: ${{ steps.resolve.outputs.url }}
       run: |
         set -euo pipefail
-        root='${{ steps.resolve.outputs.root }}'
-        url='${{ steps.resolve.outputs.url }}'
+        root="$ROOT"
+        url="$URL"
         mkdir -p "$root"
         case "$url" in
           *.tar.xz) curl -fsSL "$url" | tar -xJ -C "$root" ;;
@@ -57,9 +62,14 @@ runs:
 
     - name: Put it on PATH
       shell: bash
-      run: |
+      env:
+        ROOT: ${{ steps.resolve.outputs.root }}
+      # Only the SDK directory under the runner's tool cache is written here,
+      # nothing from the event or the repository. zizmor can't see which
+      # workflow calls this action, so it reports the write regardless.
+      run: | # zizmor: ignore[github-env]
         set -euo pipefail
-        root='${{ steps.resolve.outputs.root }}'
+        root="$ROOT"
         # The archives ship a real git checkout, which the flutter tool reads
         # its version from and refuses to touch when git calls it untrusted.
         git config --global --add safe.directory "${root}/flutter"
